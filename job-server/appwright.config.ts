@@ -1,30 +1,56 @@
-import { defineConfig, devices } from 'appwright';
+import { defineConfig, Platform } from "appwright";
+import path from "path";
 
 export default defineConfig({
-  testDir: '/home/aqw/projects/QueueForge/tests',
-  timeout: 30000,
-  retries: 1,
-  reporter: [['list'], ['html']],
-  use: {
-    headless: true,
-    viewport: { width: 1280, height: 720 },
-    ignoreHTTPSErrors: true,
-    screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
-  },
-  // projects: [
-  //   {
-  //     name: 'chromium',
-  //     use: { ...devices['Desktop Chrome'] },
-  //   },
-  //   {
-  //     name: 'firefox',
-  //     use: { ...devices['Desktop Firefox'] },
-  //   },
-  //   {
-  //     name: 'webkit',
-  //     use: { ...devices['Desktop Safari'] },
-  //   },
-  //   // add more devices or BrowserStack configs if needed
-  // ],
+  projects: [
+    {
+      name: "ios",
+      use: {
+        platform: Platform.IOS,
+        browserName: "webkit", // Still likely needed
+        // Instead of a top-level 'device' object, try nesting LambdaTest options directly
+        // This is a common Playwright pattern for cloud providers
+        'lambdatest:options': { // This key might vary, check Appwright docs!
+          'platformName': 'iOS', // OS on LambdaTest, e.g., 'iOS' or 'MacOS Ventura'
+          'deviceName': 'iPhone 14 Pro', // Specific device name as per LambdaTest
+          'platformVersion': '14',      // OS version on LambdaTest
+          'app': 'bs://<hashed-app-id>', // Or a local path if Appwright handles upload
+          // Replace 'bs://<hashed-app-id>' with your LambdaTest app upload URL/ID
+          // build: 'QualGent iOS Build', // Your custom build name
+          // project: 'QualGent App Tests', // Your custom project name
+          'build': 'Playwright Appwright Build',
+          'project': 'QualGent',
+          'autoGrantPermissions': true, // Example capability
+          'devicelog': true,           // Example capability
+          'networkLogs': true,         // Example capability
+          'video': true,
+          'console': true
+        },
+        buildPath: path.join("builds", "Wikipedia.app"), // Might still be useful for local builds
+      } as any, // Keep as any if TypeScript still complains
+    },
+    {
+      name: "android",
+      use: {
+        platform: Platform.ANDROID,
+        browserName: "chromium", // Still likely needed
+        'lambdatest:options': { // This key might vary, check Appwright docs!
+          'platformName': 'Android',
+          'deviceName': 'Pixel 7', // Specific device name as per LambdaTest
+          'platformVersion': '10',
+          'app': 'bs://<hashed-app-id>', // Or a local path if Appwright handles upload
+          // build: 'QualGent Android Build',
+          // project: 'QualGent App Tests',
+          'build': 'Playwright Appwright Build',
+          'project': 'QualGent',
+          'autoGrantPermissions': true,
+          'devicelog': true,
+          'networkLogs': true,
+          'video': true,
+          'console': true
+        },
+        buildPath: path.join("builds", "wikipedia.apk"), // Might still be useful for local builds
+      } as any, // Keep as any if TypeScript still complains
+    },
+  ],
 });
