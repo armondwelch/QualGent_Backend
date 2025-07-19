@@ -1,6 +1,7 @@
 const { exec } = require("child_process");
 const path = require("path");
 const config = require("./config"); // Make sure config.js exports APPWRIGHT_PATH
+const appwrightPath = '/home/node/appwright/dist/bin/index.js';
 
 /**
  * Runs an Appwright test job.

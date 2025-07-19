@@ -12,9 +12,12 @@
   "description": "",
   "dependencies": {
     "express": "^5.1.0",
-    "uuid": "^11.1.0"
+    "pg": "^8.16.3",
+    "uuid": "^11.1.0",
+    "appwright": "^0.1.45"
   },
   "devDependencies": {
+    "@types/node": "^24.0.15",
     "typescript": "^5.8.3"
   }
 }
