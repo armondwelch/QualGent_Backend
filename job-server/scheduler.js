@@ -18,7 +18,7 @@ exports.start = () => {
       (async () => {
         for (const job of jobs) {
           try {
-            await assignJob(job);
+            await assignJob({...job, target });
           } catch (err) {
             console.error(`Job ${job.job_id} failed on agent ${agent.id}:`, err);
             // Optionally, update job status to 'failed' in jobStore here
