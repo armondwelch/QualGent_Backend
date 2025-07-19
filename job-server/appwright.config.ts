@@ -3,8 +3,8 @@ import path from "path";
 
 export default defineConfig({
   reporter: [
-    ['html', { open: 'never' }], // generate report but don't open/serve it
-    ['list'],                    // show list output in console
+    ['html', { open: 'never' }],
+    ['list'],
   ],
   projects: [
     {
@@ -17,7 +17,7 @@ export default defineConfig({
           osVersion: "14.0",
         },
         appBundleId: "org.wikipedia",
-        buildPath: path.join("builds", "wikipedia.apk"),
+        buildPath: path.join("/mnt/data/apk-storage", "wikipedia.apk"), // Update to use PV mount path
         video: "on",
       },
     },
@@ -31,9 +31,8 @@ export default defineConfig({
           osVersion: "14.0",
         },
         appBundleId: "com.microsoft.onenote",
-        buildPath: path.join("builds", "Wikipedia.app"),
+        buildPath: path.join("builds", "Wikipedia.app"),  // Adjust this if needed
       },
     },
   ],
 });
-

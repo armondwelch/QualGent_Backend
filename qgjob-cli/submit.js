@@ -1,13 +1,15 @@
 const axios = require('axios');
 const chalk = require('chalk');
 
+const jobServerUrl = process.env.JOB_SERVER_URL || 'http://localhost:3000';
+
 async function submitJob(job) {
   try {
     if (!process.env.CI) {
       console.log(chalk.blue('Submitting job with payload:'), job);
     }
 
-    const response = await axios.post('http://localhost:3000/jobs', job);
+    const response = await axios.post(`${jobServerUrl}/jobs`, job);	  
 
     if (!process.env.CI) {
       console.log(chalk.blue('Server responded with:'), response.data);
