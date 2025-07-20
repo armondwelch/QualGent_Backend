@@ -1,0 +1,87 @@
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+
+---
+# Create a secret for PostgreSQL credentials
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-secret
+type: Opaque
+data:
+  password: eW91clN0cm9uZ1Bhc3N3b3Jk  # base64 encoded "yourStrongPassword"
+  # To change password: echo -n "yourNewPassword" | base64
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+spec:
+  selector:
+    matchLabels:
+      app: postgres
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_DB
+          value: "qualgentdb"  # Your existing database name
+        - name: POSTGRES_USER
+          value: "qualgentuser"  # Your existing username
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: password
+        # Add some PostgreSQL optimization settings
+        - name: POSTGRES_INITDB_ARGS
+          value: "--encoding=UTF8 --locale=C"
+        volumeMounts:
+        - mountPath: /var/lib/postgresql/data
+          name: postgres-storage
+          subPath: postgres  # This prevents issues with lost+found directory
+        # Add resource limits for better performance
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+      volumes:
+      - name: postgres-storage
+        persistentVolumeClaim:
+          claimName: postgres-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-service
+spec:
+  selector:
+    app: postgres
+  ports:
+  - protocol: TCP
+    port: 5432
+    targetPort: 5432
+  type: LoadBalancer  # Changed from LoadBalancer to ClusterIP for internal access only
+  # Use LoadBalancer only if you need external access from outside the cluster

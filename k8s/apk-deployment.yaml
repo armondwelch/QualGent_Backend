@@ -1,0 +1,26 @@
+# PersistentVolume (PV)
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: apk-pv
+spec:
+  capacity:
+    storage: 20Gi  # Adjust the size as needed
+  accessModes:
+    - ReadWriteOnce  # Only one pod can read/write at a time
+  hostPath:
+    path: /mnt/data/apk-storage  # Path on the node where APK files are stored
+  persistentVolumeReclaimPolicy: Retain  # Retain PV when PVC is deleted
+
+---
+# PersistentVolumeClaim (PVC)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: apk-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce  # Matches the PV's access mode
+  resources:
+    requests:
+      storage: 20Gi  # Size request (must match or be smaller than PV size)

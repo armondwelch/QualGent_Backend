@@ -1,0 +1,64 @@
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: job-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: job-server
+  template:
+    metadata:
+      labels:
+        app: job-server
+    spec:
+      containers:
+      - name: job-server
+        image: armondwelch/qgjob-server:latest
+        ports:
+        - containerPort: 3000
+        env:
+        # BrowserStack credentials
+        - name: BROWSERSTACK_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: browserstack-creds
+              key: username
+        - name: BROWSERSTACK_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: browserstack-creds
+              key: access_key
+        # PostgreSQL connection variables
+        - name: POSTGRES_HOST
+          value: "postgres-service"  # Your PostgreSQL service name
+        - name: POSTGRES_PORT
+          value: "5432"
+        - name: POSTGRES_DB
+          value: "qualgentdb"  # Your actual database name
+        - name: POSTGRES_USER
+          value: "qualgentuser"  # Your username
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret  # Your PostgreSQL secret
+              key: password
+        volumeMounts:
+        - name: apk-storage
+          mountPath: /mnt/data/apk-storage  # The path where APK files will be accessible inside the container
+      volumes:
+      - name: apk-storage
+        persistentVolumeClaim:
+          claimName: apk-pvc  # This should match the PVC you created earlier for the APK storage
+
+---
+# If you don't have the postgres-secret yet, create it
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-secret
+type: Opaque
+data:
+  password: eW91clN0cm9uZ1Bhc3N3b3Jk  # base64 encoded "yourStrongPassword"
+  # To encode your password: echo -n "yourStrongPassword" | base64

@@ -11,10 +11,11 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "appwright": "^0.1.45",
+    "dotenv": "^17.2.0",
     "express": "^5.1.0",
     "pg": "^8.16.3",
-    "uuid": "^11.1.0",
-    "appwright": "^0.1.45"
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "@types/node": "^24.0.15",

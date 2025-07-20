@@ -1,16 +1,8 @@
+
 const { exec } = require("child_process");
 const path = require("path");
 const https = require("https");
 const config = require("./config");
-
-// Import video download functions
-let videoStorage;
-try {
-  videoStorage = require('./video-storage');
-} catch (e) {
-  console.log('[runJob.js] Video storage module not available:', e.message);
-  videoStorage = null;
-}
 
 // Try to use axios if available, fallback to https
 let httpClient;
@@ -72,13 +64,10 @@ async function getBrowserStackSessions() {
         });
         
         console.log(`[runJob.js] Sessions response status: ${sessionsResponse.status}`);
-        return {
-          sessions: sessionsResponse.data,
-          buildId: buildId
-        };
+        return sessionsResponse.data;
       } else {
         console.log('[runJob.js] No builds found');
-        return { sessions: [], buildId: null };
+        return [];
       }
       
     } catch (error) {
@@ -158,7 +147,7 @@ async function getBrowserStackSessions() {
                   
                   try {
                     const sessions = JSON.parse(sessionData);
-                    resolve({ sessions: sessions, buildId: buildId });
+                    resolve(sessions);
                   } catch (parseError) {
                     reject(new Error(`JSON parse error: ${parseError.message}. Response was: ${sessionData.substring(0, 200)}`));
                   }
@@ -178,7 +167,7 @@ async function getBrowserStackSessions() {
               
             } else {
               console.log('[runJob.js] No builds found');
-              resolve({ sessions: [], buildId: null });
+              resolve([]);
             }
             
           } catch (parseError) {
@@ -421,8 +410,7 @@ async function runJob(job) {
           await new Promise(resolve => setTimeout(resolve, 3000));
           
           // Get recent sessions from the latest build
-          const sessionResult = await getBrowserStackSessions();
-          const { sessions, buildId } = sessionResult;
+          const sessions = await getBrowserStackSessions();
           
           if (sessions && sessions.length > 0) {
             // Get the most recent session (assuming it's the one we just ran)
@@ -446,34 +434,6 @@ async function runJob(job) {
             // Build the dashboard URL
             const dashboardUrl = `https://app-automate.browserstack.com/dashboard/v2/sessions/${latestSession.hashed_id}`;
             console.log(`- Dashboard URL: ${dashboardUrl}`);
-            
-            // � NEW: Download and store video in PostgreSQL (if video storage is available)
-            if (latestSession.video_url && videoStorage) {
-              console.log('[runJob.js] � Starting video download and storage...');
-              
-              try {
-                const videoResult = await videoStorage.processBrowserStackSession(latestSession, buildId);
-                
-                if (videoResult.success) {
-                  if (videoResult.existing) {
-                    const sizeMB = Math.round(videoResult.size / 1024 / 1024);
-                    console.log(`[runJob.js] ✅ Video already exists in database (${sizeMB}MB)`);
-                  } else {
-                    const sizeMB = Math.round(videoResult.size / 1024 / 1024);
-                    console.log(`[runJob.js] ✅ Video downloaded and stored successfully!`);
-                    console.log(`[runJob.js] � Database ID: ${videoResult.dbId}, Size: ${sizeMB}MB`);
-                  }
-                } else {
-                  console.log(`[runJob.js] ❌ Video download failed: ${videoResult.error}`);
-                }
-              } catch (videoError) {
-                console.log(`[runJob.js] ❌ Error processing video: ${videoError.message}`);
-              }
-            } else if (latestSession.video_url && !videoStorage) {
-              console.log('[runJob.js] � Video URL available but video storage module not loaded');
-            } else {
-              console.log('[runJob.js] ⚠️  No video URL available for download');
-            }
             
           } else {
             console.log('[runJob.js] No recent BrowserStack sessions found');
