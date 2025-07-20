@@ -26,12 +26,12 @@ export default defineConfig({
       use: {
         platform: Platform.IOS,
         device: {
-          provider: "lambdatest",
+          provider: "browserstack",
           name: "iPhone 14",
           osVersion: "14.0",
         },
-        appBundleId: "com.microsoft.onenote",
-        buildPath: path.join("builds", "Wikipedia.app"),  // Adjust this if needed
+        appBundleId: "org.wikipedia",
+        buildPath: path.join("/mnt/data/apk-storage", "Wikipedia.app"),  // Adjust this if needed
       },
     },
   ],
