@@ -415,7 +415,20 @@ async function runJob(job) {
       const testNameMatch = fullOutput.match(/Starting test: (.+?) on worker/);
       const testName = testNameMatch ? testNameMatch[1] : 'Unknown Test';
       
-      // Try to get BrowserStack session details after test completion (regardless of pass/fail)
+      if (error && !testsPassed) {
+        console.error(`[runJob.js] Error running Appwright test: ${error.message}`);
+        console.error(`[runJob.js] STDOUT: \n${stdout}`);
+        console.error(`[runJob.js] STDERR: \n${stderr}`);
+        
+        if (fullOutput.includes("BROWSERSTACK_USERNAME") && fullOutput.includes("BROWSERSTACK_ACCESS_KEY")) {
+          reject(new Error("Test failed: BrowserStack credentials required. This indicates your appwright.config.js might not be correctly loaded or there's an implicit BrowserStack dependency."));
+        } else {
+          reject(new Error(`Test failed during execution: ${error.message}`));
+        }
+      } else {
+        console.log('[runJob.js] Test completed successfully.');
+        
+        // Try to get BrowserStack session details after test completion
         try {
           console.log('[runJob.js] Fetching BrowserStack session details...');
           // Add a small delay to ensure session is registered
@@ -507,21 +520,8 @@ async function runJob(job) {
           }
         }
         
-        // Determine final result after video processing
-        if (error && !testsPassed) {
-          console.error(`[runJob.js] Error running Appwright test: ${error.message}`);
-          console.error(`[runJob.js] STDOUT: \n${stdout}`);
-          console.error(`[runJob.js] STDERR: \n${stderr}`);
-          
-          if (fullOutput.includes("BROWSERSTACK_USERNAME") && fullOutput.includes("BROWSERSTACK_ACCESS_KEY")) {
-            reject(new Error("Test failed: BrowserStack credentials required. This indicates your appwright.config.js might not be correctly loaded or there's an implicit BrowserStack dependency."));
-          } else {
-            reject(new Error(`Test failed during execution: ${error.message}`));
-          }
-        } else {
-          console.log('[runJob.js] Test completed successfully.');
-          resolve(stdout);
-        }
+        resolve(stdout);
+      }
     });
   });
 }

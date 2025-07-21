@@ -15,6 +15,9 @@ RUN npm run build-config
 FROM node:18-slim
 WORKDIR /usr/src/app
 
+# Install zip utility for iOS app conversion
+RUN apt-get update && apt-get install -y zip && apt-get clean && rm -rf /var/lib/apt/lists/*
+
 COPY QualGent_Backend/job-server/package*.json ./
 RUN npm install --omit=dev
 

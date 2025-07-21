@@ -28,10 +28,10 @@ export default defineConfig({
         device: {
           provider: "browserstack",
           name: "iPhone 14",
-          osVersion: "14.0",
+          osVersion: "16.0",
         },
-        appBundleId: "org.wikipedia",
-        buildPath: path.join("/mnt/data/apk-storage", "Wikipedia.app"),  // Adjust this if needed
+       // appBundleId: "com.experitest.ExperiBankUIAutomation",
+        buildPath: path.join("/mnt/data/apk-storage", "RetroArch.ipa"),  // Adjust this if needed
       },
     },
   ],
