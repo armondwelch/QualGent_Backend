@@ -1,91 +1,158 @@
 <h1>QueueForge - Job Scheduling System</h1> 
 
- QueueForge is a tool for managing end-2-end testing across multiple devices and app versions, prioritizing job execution and reducing reduncy. The tool receives and queues test jobs., groups them by app_version_id, assigns jobs to available agents based on device availability and target, and tracks job and run statuses with retries for failed jobs.
+ QueueForge is a tool for managing end-2-end testing across multiple devices and app versions, prioritizing job execution and reducing redundancy. The tool receives and queues test jobs., groups them by app_version_id, assigns jobs to available agents based on device availability and target, and tracks job and run statuses with retries for failed jobs.
 
+<h1>Features:</h1>
 
-<h1>Key Features:</h1>
+Job Server: Handles job scheduling, execution, and integration with external services like BrowserStack.
 
-Job Submission: Submits jobs with relevant metadata like app version, test path, priority, and target platform.
+PostgreSQL Database: Stores metadata for test videos, job statuses, and other related information.
+
+Kubernetes: Manages the deployment and scaling of services like job server, database, and other components.
+
+BrowserStack: Used for cross-browser and mobile device testing with retrieval of test results and metadata.
+
+CLI Tool (qgjob-cli): Command-line tool for managing job execution and interactions with the backend services.
+
+<h1>Job Handling</h1>
+
+Job Submission: Submits jobs with relevant information including app version, test path, priority (e.g. 1,2 3), and target platform (ios or android)
 
 Job Queueing: Jobs are queued with priority and grouped by app_version_id to optimize device usage.
 
 Job Assignment: Jobs are assigned to available agents based on device target (Android/iOS) and priority.
 
-Job Retry: Failed jobs are retried up to a configured maximum number of attempts.
+Job Retry: Failed jobs are retried up to a configured maximum number of attempts (Default 3).
 
-Job Status Tracking: You can track job status via the API and inspect the current state of queued jobs.
+Job Status Tracking: You can track job status via the API and inspect the current state of queued jobs. The status can be "queued", "running", "complete", or "failed".
+
 <img width="738" height="588" alt="image" src="https://github.com/user-attachments/assets/0a1464f9-d2dc-40d2-9c83-0eb230daa9c5" />
 
-<h1>How It Works</h1>
+<h1>Infrastructure Requirements</h1>
+<h3>Container Platform</h3>
 
-Job Creation: Users submit a job via the POST /jobs endpoint with required details (e.g., org_id, app_version_id, test_path, priority, target). 
+Docker - For containerized deployment
 
-Job Queuing: The job is then placed in an in-memory queue (or PostgreSQL database if configured). The queue is sorted based on job priority.
+Kubernetes - For orchestration and scaling (optional but recommended for production)
 
-Job Assignment: The job scheduler runs at regular intervals, checking for available agents. The scheduler assigns jobs to agents based on the target device and job priority.
+<h3>Storage</h3>
 
-Job Execution: Each agent runs the assigned test job and updates the job status accordingly. Failed jobs are retried up to the configured retry limit.
+PostgreSQL - Database for storing test results and video data
 
-Job Status: Job status can be tracked using the GET /jobs/:id endpoint. The status can be "queued", "running", "complete", or "failed".
+File Storage - Persistent volume for app builds storage (/mnt/data/apk-storage/)
 
-<h1>Setup</h1>
-<img width="792" height="508" alt="image" src="https://github.com/user-attachments/assets/fc7753ef-25e7-4466-afaf-cf70b463e239" />
+<h3>External Services</h3>
+BrowserStack App Automate account
+
+<h3>Mobile App Testing</h3>
+Appwright - Mobile testing framework
+
+<h3>Runtime Dependencies</h3>
+
+Node.js Environment
+
+Node.js v18+ recommended
+
+npm or yarn package manager
+
+<h3>System Tools (for iOS conversion)</h3>
+
+zip - For creating .ipa files from .app bundles
+
+axios- For making HTTP requests to the backend.
+
+uuid- For generating unique job IDs
+
+<h1>Quick Setup</h1>
+<h3>Prerequisites</h3>
+
+-  Containerization tool
+-  Minikube or any Kubernetes environment
+-  BrowserStack App Automate account
 
 Clone this repository:
 
-`git clone https://github.com/armondwelch/QueueForge`
+`git clone https://github.com/armondwelch/QualGent_Backend`
 
 Clone Appwright repository:
 
 `git clone https://github.com/empirical-run/appwright`
 
+<h3>1. Start Kubernetes</h3>
+
+Using Minikube
+
+`minikube start`
+
+Enable Required addons
+
+`minikube addons enable storage-provisioner`
+
+Ensure your cluster is running and kubectl is configured
+
+`kubectl cluster-info`
+
+<h3>2. Deploy the Application</h3>
+  
+Deploy Resources
+
+`kubectl apply -f k8s/`
+
+This will create persistent volumes for app storage for job server deployment and required services.
+
+<h3>Setup CLI</h3>
+
 Install Node:
 
 `curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash`
 
-Install dependencies:
-`npm install express body-parser uuid`
+Install dependencies
+
 `npm install commander axios chalk`
-`npm install --save-dev @playwright/test`
 
-<h3>CLI (qgjob-cli):</h3>
+`npm install qgjob-cli`
 
-axios: For making HTTP requests to the backend.
+<h3>Set Env Variables</h3>
 
-uuid: For generating unique job IDs
+BROWSERSTACK_USERNAME
 
-`npm install ./path-to-qgjob-cli`
+BROWSERSTACK_ACCESS_KEY
 
-`npm link`
+DATABASE_URL - PostgreSQL connection string (if applicable)
 
-<h3>Testing framework: Appwright</h3>
+<h3>Configuration</h3>
 
-cd appwright
+jobserver/appwright.config.ts can be edited to testing implementation
 
-`npm install appwright`
-
-`npm run build`
-
-Change path defined in job-server/config.js to PATH-TO/appwright/dist/bin/index.js
-
-jobserver/appwright.config.ts can be edited for further configuration
-
-<h3>Backend (job-server):</h3>
-
-Express as Web framework for handling HTTP requests;
-
-Start Server
-
-`node job-server/index.js`
-
+Default Ports
+- Job Server: `3000`
+- PostgreSQL: `5432`
+  
 <h1>Submit Tests</h1>
 
 Submit jobs using the CLI:
 
 `qgjob-cli/index.js submit --org-id="org_id" --app-version-id="app_version_id" --test="test_path" --priority="priority (e.g. 1, 2, 3)" --target="target (e.g. android, ios, emulator)"`
 
+Example job submission:
+
+`qgjob submit --org-id=qualgent --app-version-id="v1.2.3" --test="/usr/src/app/tests/tests.spec.ts" --priority="1" --target="ios"`
+
 Check status of previously submitted job:
 
 `qgjob status --job-id="ID"`
 
 Tests found in QueueForge/job-server/tests
+Builds found in QueueForge/job-server/builds
+
+<h3>Example test runs</h3>
+
+android
+
+https://app-automate.browserstack.com/projects/Default+Project/builds/app+android/23?public_token=c44e005111e6331115555920388c54ea4150f64babe2917dea48d60aacbc257c
+
+ios
+
+https://app-automate.browserstack.com/projects/Default+Project/builds/app+ios/4?public_token=c44e005111e6331115555920388c54ea4150f64babe2917dea48d60aacbc257c
+
+database dump with previous testing metadata @ QualGent_Backend/k8s/qualgent_backup.sql
