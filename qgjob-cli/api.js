@@ -1,6 +1,6 @@
 const axios = require('axios');
 
-const BASE_URL = process.env.JOB_SERVER_URL || 'http://localhost:3000'; // Or your backend URL
+const BASE_URL = process.env.JOB_SERVER_URL || 'http://192.168.49.2:31741'; // Or your backend URL
 
 exports.submitJob = async (jobPayload) => {
   const res = await axios.post(`${BASE_URL}/jobs`, jobPayload);

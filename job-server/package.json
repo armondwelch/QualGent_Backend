@@ -9,8 +9,11 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
+  "description": "Job server with mobile testing support",
   "dependencies": {
+    "appium": "^2.11.4",
+    "appium-uiautomator2-driver": "^3.7.11",
+    "appium-xcuitest-driver": "^7.25.0",
     "appwright": "^0.1.45",
     "dotenv": "^17.2.0",
     "express": "^5.1.0",

@@ -12,12 +12,11 @@ export default defineConfig({
       use: {
         platform: Platform.ANDROID,
         device: {
-          provider: "browserstack",
-          name: "Google Pixel 8",
-          osVersion: "14.0",
+          provider: "local-device",  // Changed from "emulator"
+          name: process.env.ANDROID_EMULATOR_HOST || "34.56.143.27:5555",
         },
         appBundleId: "org.wikipedia",
-        buildPath: path.join("/mnt/data/apk-storage", "wikipedia.apk"), // Update to use PV mount path
+        buildPath: path.join("/mnt/data/apk-storage", "wikipedia.apk"),
         video: "on",
       },
     },
@@ -30,8 +29,7 @@ export default defineConfig({
           name: "iPhone 14",
           osVersion: "16.0",
         },
-       // appBundleId: "com.experitest.ExperiBankUIAutomation",
-        buildPath: path.join("/mnt/data/apk-storage", "RetroArch.ipa"),  // Adjust this if needed
+        buildPath: path.join("/mnt/data/apk-storage", "RetroArch.ipa"),
       },
     },
   ],
