@@ -15,9 +15,9 @@ export default defineConfig({
           provider: "local-device",  // Changed from "emulator"
           name: process.env.ANDROID_EMULATOR_HOST || "34.56.143.27:5555",
         },
-        appBundleId: "org.wikipedia",
+	appBundleId: "org.wikipedia",
         buildPath: path.join("/mnt/data/apk-storage", "wikipedia.apk"),
-        video: "on",
+        video: "off",
       },
     },
     {

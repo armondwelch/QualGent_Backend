@@ -1,12 +1,12 @@
 # Stage 1: Build
 FROM node:18-slim AS builder
 WORKDIR /usr/src/app
-COPY QualGent_Backend/job-server/package*.json ./
-COPY QualGent_Backend/job-server/tsconfig.json ./
+COPY package*.json ./
+COPY tsconfig.json ./
 RUN npm install
-COPY QualGent_Backend/job-server/*.js ./
-COPY QualGent_Backend/job-server/*.ts ./
-COPY QualGent_Backend/job-server/tests ./tests
+COPY *.js ./
+COPY *.ts ./
+COPY tests ./tests
 RUN npm run build-config
 
 # Stage 2: Production
@@ -37,20 +37,35 @@ ENV ANDROID_HOME=/opt/android-sdk \
     ANDROID_EMULATOR_HOST=34.56.143.27:5555 \
     PATH=$PATH:/opt/android-sdk/platform-tools:/opt/android-sdk/build-tools/33.0.0
 
-# Copy app dependencies from builder stage and install, copy appwright and install in one layer
+# Copy app dependencies from builder stage and install
 COPY --from=builder /usr/src/app/package*.json ./
-COPY appwright /home/node/appwright
-RUN npm install --omit=dev \
-    && cd /home/node/appwright && npm install --omit=dev
+RUN npm install --omit=dev
 
 # Copy application files while preserving the fresh node_modules
-COPY QualGent_Backend/job-server/*.js ./
-COPY QualGent_Backend/job-server/tests ./tests
-COPY QualGent_Backend/job-server/appwright.config.ts ./
+COPY *.js ./
+COPY tests ./tests
+COPY appwright.config.ts ./
 COPY --from=builder /usr/src/app/dist ./dist
 RUN echo '#!/bin/bash\n\
 echo "=== Starting application - drivers will be loaded from package.json ==="\n\
-exec "$@"' > /entrypoint.sh && chmod +x /entrypoint.sh
+exec "$@"' > /entrypoint.sh && chmod +x /entrypoint.sh \
+    && echo '#!/bin/sh\n\
+# Fake osascript for Linux - extracts package name from APK\n\
+if echo "$@" | grep -q ".apk"; then\n\
+    # Extract APK path from the command\n\
+    APK_PATH=$(echo "$@" | sed -n "s/.*[\"'\'']\\([^\"'\'']*\\.apk\\)[\"'\''].*/\\1/p")\n\
+    if [ -f "$APK_PATH" ]; then\n\
+        # Use aapt to get the package name\n\
+        PACKAGE=$(/opt/android-sdk/build-tools/33.0.0/aapt dump badging "$APK_PATH" 2>/dev/null | grep "package: name=" | sed "s/.*name='\''\\([^'\'']*\\)'\''.*/\\1/")\n\
+        echo "${PACKAGE:-org.wikipedia}"\n\
+    else\n\
+        echo "org.wikipedia"\n\
+    fi\n\
+else\n\
+    # For non-APK files, return a default\n\
+    echo "com.example.app"\n\
+fi' > /usr/local/bin/osascript \
+    && chmod +x /usr/local/bin/osascript
 
 EXPOSE 3000
 ENTRYPOINT ["/entrypoint.sh"]
