@@ -1,5 +1,5 @@
 module.exports = {
-  APPWRIGHT_PATH: '/home/node/appwright/dist/bin/index.js',
+  APPWRIGHT_PATH: '/usr/src/app/node_modules/.bin/appwright',
   BROWSERSTACK_USERNAME: process.env.BROWSERSTACK_USERNAME,
   BROWSERSTACK_ACCESS_KEY: process.env.BROWSERSTACK_ACCESS_KEY,
 };
