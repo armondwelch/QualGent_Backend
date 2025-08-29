@@ -2,7 +2,7 @@ const { spawn } = require('child_process');
 const WebSocket = require('ws');
 const { Server } = require('socket.io');
 
-class StreamingService {
+class SimpleStreamingService {
   constructor() {
     this.activeStreams = new Map();
     this.wss = null;
@@ -21,7 +21,7 @@ class StreamingService {
       }
     });
 
-    // Initialize raw WebSocket server for scrcpy stream
+    // Initialize raw WebSocket server for screenshot stream
     this.wss = new WebSocket.Server({ 
       port: 8886,
       path: '/stream'
@@ -67,11 +67,11 @@ class StreamingService {
       });
     });
 
-    console.log('Streaming services initialized on ports 8886 (WebSocket) and Socket.IO');
+    console.log('Simple streaming services initialized on ports 8886 (WebSocket) and Socket.IO');
   }
 
   /**
-   * Start streaming from a device
+   * Start screenshot-based streaming from a device
    */
   async startStream(jobId, deviceId) {
     if (this.activeStreams.has(jobId)) {
@@ -79,60 +79,47 @@ class StreamingService {
       return this.getStreamUrl(jobId);
     }
 
-    console.log(`Starting stream for job ${jobId} on device ${deviceId}`);
+    console.log(`Starting screenshot stream for job ${jobId} on device ${deviceId}`);
     
-    // Start scrcpy process
-    const scrcpyProcess = spawn('scrcpy', [
-      '--serial', deviceId,
-      '--no-playback',  // Don't show window on server (updated for v3.3.1)
-      '--video-codec', 'h264',
-      '--video-bit-rate', '2M',
-      '--max-size', '1280',
-      '--no-audio',
-      '--stay-awake',
-      '--show-touches'
-    ], {
-      env: {
-        ...process.env,
-        ADB_SERVER_SOCKET: `tcp:${deviceId}`
-      }
-    });
-
     const streamData = {
-      process: scrcpyProcess,
       deviceId,
       startTime: Date.now(),
-      clients: new Set()
+      clients: new Set(),
+      interval: null,
+      isActive: true
     };
 
     this.activeStreams.set(jobId, streamData);
 
-    // Handle process output
-    scrcpyProcess.stdout.on('data', (data) => {
-      // Broadcast raw H264 data to all connected WebSocket clients
-      streamData.clients.forEach(client => {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(data);
+    // Start periodic screenshot capture and broadcast
+    streamData.interval = setInterval(async () => {
+      try {
+        const screenshot = await this.getScreenshot(deviceId);
+        const message = {
+          type: 'screenshot',
+          jobId,
+          timestamp: Date.now(),
+          data: `data:image/png;base64,${screenshot}`
+        };
+
+        // Broadcast to all connected WebSocket clients
+        streamData.clients.forEach(client => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify(message));
+          }
+        });
+
+        // Also emit via Socket.IO
+        if (this.io) {
+          this.io.emit('screenshot-update', message);
         }
-      });
-    });
+      } catch (error) {
+        console.error(`Screenshot capture error for job ${jobId}:`, error);
+      }
+    }, 1000); // Capture every 1 second (1 FPS)
 
-    scrcpyProcess.stderr.on('data', (data) => {
-      console.error(`scrcpy stderr for job ${jobId}:`, data.toString());
-    });
-
-    scrcpyProcess.on('error', (error) => {
-      console.error(`scrcpy process error for job ${jobId}:`, error);
-      this.stopStream(jobId);
-    });
-
-    scrcpyProcess.on('exit', (code) => {
-      console.log(`scrcpy process exited for job ${jobId} with code ${code}`);
-      this.activeStreams.delete(jobId);
-    });
-
-    // Wait a moment for scrcpy to initialize
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    // Wait a moment for first screenshot
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     return this.getStreamUrl(jobId);
   }
@@ -145,15 +132,17 @@ class StreamingService {
     if (stream) {
       console.log(`Stopping stream for job: ${jobId}`);
       
+      // Stop the screenshot interval
+      if (stream.interval) {
+        clearInterval(stream.interval);
+      }
+
+      stream.isActive = false;
+
       // Close all client connections
       stream.clients.forEach(client => {
         client.close(1000, 'Stream ended');
       });
-
-      // Kill scrcpy process
-      if (stream.process && !stream.process.killed) {
-        stream.process.kill('SIGTERM');
-      }
 
       this.activeStreams.delete(jobId);
     }
@@ -174,7 +163,13 @@ class StreamingService {
         chunks.push(chunk);
       });
 
-      adbProcess.on('error', reject);
+      adbProcess.stderr.on('data', (data) => {
+        console.error(`Screenshot stderr: ${data}`);
+      });
+
+      adbProcess.on('error', (error) => {
+        reject(new Error(`Screenshot process error: ${error.message}`));
+      });
       
       adbProcess.on('exit', (code) => {
         if (code === 0) {
@@ -193,6 +188,14 @@ class StreamingService {
   attachClientToStream(ws, stream) {
     stream.clients.add(ws);
     
+    // Send welcome message
+    ws.send(JSON.stringify({
+      type: 'connected',
+      message: 'Screenshot stream connected',
+      jobId: stream.jobId,
+      fps: 1
+    }));
+    
     ws.on('close', () => {
       stream.clients.delete(ws);
       console.log(`Client disconnected from stream. Remaining clients: ${stream.clients.size}`);
@@ -202,6 +205,21 @@ class StreamingService {
       console.error('WebSocket client error:', error);
       stream.clients.delete(ws);
     });
+
+    // Send current screenshot immediately if available
+    this.getScreenshot(stream.deviceId)
+      .then(screenshot => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({
+            type: 'screenshot',
+            timestamp: Date.now(),
+            data: `data:image/png;base64,${screenshot}`
+          }));
+        }
+      })
+      .catch(error => {
+        console.error('Initial screenshot failed:', error);
+      });
   }
 
   /**
@@ -218,7 +236,9 @@ class StreamingService {
   getStreamUrl(jobId) {
     return {
       websocket: `ws://localhost:8886/stream?jobId=${jobId}`,
-      web: `http://localhost:3000/stream/${jobId}`
+      web: `http://localhost:3000/stream/${jobId}`,
+      type: 'screenshot-stream',
+      fps: 1
     };
   }
 
@@ -230,7 +250,9 @@ class StreamingService {
       jobId,
       deviceId: this.activeStreams.get(jobId).deviceId,
       startTime: this.activeStreams.get(jobId).startTime,
-      clientCount: this.activeStreams.get(jobId).clients.size
+      clientCount: this.activeStreams.get(jobId).clients.size,
+      type: 'screenshot-stream',
+      fps: 1
     }));
   }
 
@@ -253,4 +275,4 @@ class StreamingService {
   }
 }
 
-module.exports = StreamingService;
+module.exports = SimpleStreamingService;
