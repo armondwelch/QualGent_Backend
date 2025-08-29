@@ -1,13 +1,16 @@
 # Stage 1: Build
 FROM node:18-slim AS builder
 WORKDIR /usr/src/app
+# Install git for npm to clone the forked appwright repository
+RUN apt-get update && apt-get install -y git && apt-get clean && rm -rf /var/lib/apt/lists/*
 COPY QualGent_Backend/job-server/package*.json ./
 COPY QualGent_Backend/job-server/tsconfig.json ./
 RUN npm install
 COPY QualGent_Backend/job-server/*.js ./
 COPY QualGent_Backend/job-server/*.ts ./
 COPY QualGent_Backend/job-server/tests ./tests
-RUN npm run build-config
+# Skip TypeScript build for now since we're just using the JS files
+# RUN npm run build-config
 
 # Stage 2: Production
 FROM node:18-slim
@@ -54,11 +57,18 @@ ENV ANDROID_HOME=/opt/android-sdk \
 COPY --from=builder /usr/src/app/package*.json ./
 RUN npm install --omit=dev
 
+# Patch appwright to fix the pkill -f appium error that causes second test runs to fail
+RUN sed -i 's/reject(error);/resolve(stdout); \/\/ Fixed: treat pkill error as successful cleanup/' /usr/src/app/node_modules/appwright/dist/providers/appium.js
+
+# Patch appwright to skip driver reinstallation (add early return)
+RUN sed -i '/async function installDriver(driverName) {/a\    return; \/\/ Skip driver reinstall - use existing compatible drivers' /usr/src/app/node_modules/appwright/dist/providers/appium.js
+
 # Copy application files while preserving the fresh node_modules
 COPY QualGent_Backend/job-server/*.js ./
 COPY QualGent_Backend/job-server/tests ./tests
 COPY QualGent_Backend/job-server/appwright.config.ts ./
-COPY --from=builder /usr/src/app/dist ./dist
+# Copy the TypeScript config since we're using the .ts file directly
+COPY QualGent_Backend/job-server/tsconfig.json ./
 RUN echo '#!/bin/bash\n\
 echo "=== Starting application - drivers will be loaded from package.json ==="\n\
 exec "$@"' > /entrypoint.sh && chmod +x /entrypoint.sh \
