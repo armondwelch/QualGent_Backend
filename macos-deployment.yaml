@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: macos-simulator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: macos-simulator
+  template:
+    metadata:
+      labels:
+        app: macos-simulator
+    spec:
+      nodeSelector:
+        workload: macos
+      containers:
+      - name: docker-osx
+        image: gcr.io/queueforge/docker-osx-monitor:latest
+        ports:
+        - containerPort: 10022
+        - containerPort: 5999
+        - containerPort: 4723
+        env:
+        - name: SHORTNAME
+          value: "ventura"
+        - name: RAM
+          value: "8"
+        - name: EXTRA
+          value: "-vnc 0.0.0.0:99"
+        resources:
+          requests:
+            cpu: "3"
+            memory: "8Gi"
+          limits:
+            cpu: "6"
+            memory: "12Gi"
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - name: dev-kvm
+          mountPath: /dev/kvm
+      volumes:
+      - name: dev-kvm
+        hostPath:
+          path: /dev/kvm
+          type: CharDevice

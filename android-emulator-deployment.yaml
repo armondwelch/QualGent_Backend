@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: android-emulator
+  labels:
+    app: android-emulator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: android-emulator
+  template:
+    metadata:
+      labels:
+        app: android-emulator
+    spec:
+      # Schedule only on nodes with KVM enabled
+      nodeSelector:
+        kvm: enabled
+      containers:
+      - name: android-emulator
+        image: budtmo/docker-android:emulator_11.0
+        ports:
+        - containerPort: 5554
+          name: console  # Shortened from "emulator-console"
+        - containerPort: 5555
+          name: adb
+        - containerPort: 6080
+          name: vnc-web
+        env:
+        - name: DEVICE
+          value: "Nexus 5"
+        - name: ANDROID_VERSION
+          value: "11.0"
+        - name: DATAPARTITION
+          value: "2048m"
+        resources:
+          requests:
+            cpu: "2"
+            memory: "4Gi"
+          limits:
+            cpu: "4"
+            memory: "8Gi"
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - name: android-data
+          mountPath: /root/.android
+        - name: dev-kvm
+          mountPath: /dev/kvm
+        # Removed problematic HTTP probes that depend on VNC web service
+        # VNC server (x11vnc) runs on port 5900, not the web interface on 6080
+        readinessProbe:
+          tcpSocket:
+            port: 5555
+          initialDelaySeconds: 60
+          periodSeconds: 10
+        livenessProbe:
+          tcpSocket:
+            port: 5555
+          initialDelaySeconds: 120
+          periodSeconds: 30
+      volumes:
+      - name: android-data
+        emptyDir: {}
+      - name: dev-kvm
+        hostPath:
+          path: /dev/kvm
+          type: CharDevice

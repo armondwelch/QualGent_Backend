@@ -12,13 +12,12 @@ export default defineConfig({
       use: {
         platform: Platform.ANDROID,
         device: {
-          provider: "browserstack",
-          name: "Google Pixel 8",
-          osVersion: "14.0",
+          provider: "local-device",  // Changed from "emulator"
+          name: process.env.ANDROID_EMULATOR_HOST || "34.56.143.27:5555",
         },
-        appBundleId: "org.wikipedia",
-        buildPath: path.join("/mnt/data/apk-storage", "wikipedia.apk"), // Update to use PV mount path
-        video: "on",
+	appBundleId: "org.wikipedia",
+        buildPath: path.join("/mnt/data/apk-storage", "wikipedia.apk"),
+        video: "off",
       },
     },
     {
@@ -26,12 +25,11 @@ export default defineConfig({
       use: {
         platform: Platform.IOS,
         device: {
-          provider: "lambdatest",
-          name: "iPhone 14",
-          osVersion: "14.0",
+          provider: "local-device",
+	  name: "34.70.141.104:4723",
         },
-        appBundleId: "com.microsoft.onenote",
-        buildPath: path.join("builds", "Wikipedia.app"),  // Adjust this if needed
+        buildPath: path.join("/mnt/data/apk-storage", "RetroArch.ipa"),
+        video: "off",
       },
     },
   ],

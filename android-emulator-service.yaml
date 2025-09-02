@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: android-emulator-service
+  labels:
+    app: android-emulator
+spec:
+  type: LoadBalancer
+  selector:
+    app: android-emulator
+  ports:
+    - name: adb
+      port: 5555
+      targetPort: 5555
+      protocol: TCP
+    - name: emulator-console
+      port: 5554
+      targetPort: 5554
+      protocol: TCP
+    - name: vnc-web
+      port: 6080
+      targetPort: 6080
+      protocol: TCP
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800

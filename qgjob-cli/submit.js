@@ -1,7 +1,7 @@
 const axios = require('axios');
 const chalk = require('chalk');
 
-const jobServerUrl = process.env.JOB_SERVER_URL || 'http://localhost:3000';
+const jobServerUrl = process.env.JOB_SERVER_URL || 'http://192.168.49.2:31741';
 
 async function submitJob(job) {
   try {

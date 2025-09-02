@@ -1,14 +1,31 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const { v4: uuidv4 } = require('uuid');
+const http = require('http');
+const cors = require('cors');
 
 const jobStore = require('./jobStore');
 const queue = require('./queue');
 const scheduler = require('./scheduler');
+const WsScrcpyService = require('./wsScrcpyService');
+const IOSSimulatorService = require('./iosSimulatorService');
 
 const app = express();
+const server = http.createServer(app);
+const streamingService = new WsScrcpyService();
+const iosService = new IOSSimulatorService();
 
+app.use(cors());
 app.use(bodyParser.json());
+
+// Initialize streaming services
+streamingService.initialize(server).catch(err => {
+  console.error('Failed to initialize ws-scrcpy:', err);
+});
+
+iosService.initialize(server).catch(err => {
+  console.error('Failed to initialize iOS simulator service:', err);
+});
 
 // Debug middleware to log incoming requests
 app.use((req, res, next) => {
@@ -53,6 +70,116 @@ app.get('/jobs/:id', (req, res) => {
   res.json({ status: job.status });
 });
 
+// Route to start streaming for a job (Android)
+app.post('/jobs/:id/stream', async (req, res) => {
+  const jobId = req.params.id;
+  const job = jobStore.getJob(jobId);
+  
+  if (!job) {
+    return res.status(404).json({ error: 'Job not found' });
+  }
+
+  try {
+    const deviceId = process.env.ANDROID_EMULATOR_HOST || '34.56.143.27:5555';
+    const streamInfo = await streamingService.startDeviceStream(jobId, deviceId);
+    
+    res.json({
+      jobId,
+      streamInfo,
+      message: 'ws-scrcpy stream started successfully',
+      instructions: {
+        webInterface: `Open ${streamInfo.webUrl} in your browser to view and control the device`,
+        directStream: `Connect to ${streamInfo.wsUrl} for raw H264 stream`
+      }
+    });
+  } catch (error) {
+    console.error(`Error starting stream for job ${jobId}:`, error);
+    res.status(500).json({ 
+      error: 'Failed to start stream', 
+      details: error.message 
+    });
+  }
+});
+
+// Route to start iOS simulator streaming
+app.post('/jobs/:id/ios-stream', async (req, res) => {
+  const jobId = req.params.id;
+  const job = jobStore.getJob(jobId);
+  
+  if (!job) {
+    return res.status(404).json({ error: 'Job not found' });
+  }
+
+  try {
+    const simulatorHost = process.env.IOS_SIMULATOR_VNC || '146.148.52.213:5900';
+    const streamInfo = await iosService.startIOSStream(jobId, simulatorHost);
+    
+    res.json({
+      jobId,
+      streamInfo,
+      message: 'iOS simulator stream started successfully',
+      instructions: {
+        vncViewer: `Use VNC viewer to connect to ${streamInfo.vncUrl}`,
+        webViewer: `Open ${streamInfo.webVncUrl} for web-based viewing`,
+        screencast: `View screenshots at ${streamInfo.screencastUrl}`
+      }
+    });
+  } catch (error) {
+    console.error(`Error starting iOS stream for job ${jobId}:`, error);
+    res.status(500).json({ 
+      error: 'Failed to start iOS stream', 
+      details: error.message 
+    });
+  }
+});
+
+// Route to stop streaming for a job (Android)
+app.delete('/jobs/:id/stream', (req, res) => {
+  const jobId = req.params.id;
+  streamingService.stopDeviceStream(jobId);
+  
+  res.json({
+    jobId,
+    message: 'Android stream stopped'
+  });
+});
+
+// Route to stop iOS simulator streaming
+app.delete('/jobs/:id/ios-stream', (req, res) => {
+  const jobId = req.params.id;
+  iosService.stopIOSStream(jobId);
+  
+  res.json({
+    jobId,
+    message: 'iOS stream stopped'
+  });
+});
+
+// Route to list active streams
+app.get('/streams', (req, res) => {
+  const androidStreams = streamingService.getActiveStreams();
+  const iosStreams = iosService.getActiveStreams();
+  
+  res.json({ 
+    androidStreams,
+    iosStreams,
+    totalStreams: androidStreams.length + iosStreams.length
+  });
+});
+
+// Route to get connected devices
+app.get('/devices', async (req, res) => {
+  try {
+    const devices = await streamingService.getDeviceList();
+    res.json({ devices });
+  } catch (error) {
+    res.status(500).json({ 
+      error: 'Failed to get device list', 
+      details: error.message 
+    });
+  }
+});
+
 // Debug route to inspect the current grouped job queue
 app.get('/debug/queue', (req, res) => {
   if (typeof queue.listQueuedJobs === 'function') {
@@ -62,10 +189,30 @@ app.get('/debug/queue', (req, res) => {
   }
 });
 
+// Graceful shutdown handling
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, shutting down gracefully...');
+  streamingService.cleanup();
+  iosService.cleanup();
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  console.log('SIGINT received, shutting down gracefully...');
+  streamingService.cleanup();
+  iosService.cleanup();
+  process.exit(0);
+});
+
 // Start the server
 const PORT = 3000;
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Job server running on port ${PORT}`);
+  console.log('ws-scrcpy streaming server will be running on port 8886');
+  console.log('iOS simulator service initialized with VNC support');
+  console.log('Socket.IO server initialized for stream control');
+  console.log('Access streaming web interface at: http://localhost:8886');
+  console.log('iOS simulator VNC: vnc://146.148.52.213:5900');
   scheduler.start(); // Start the job scheduling loop
 });
 
