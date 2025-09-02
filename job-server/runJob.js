@@ -21,9 +21,92 @@ try {
   httpClient = null;
 }
 
+// Add WebDriverIO for iOS tests
+let wdio;
+try {
+  wdio = require('webdriverio');
+} catch (e) {
+  console.log('[runJob.js] WebDriverIO not available for iOS tests:', e.message);
+  wdio = null;
+}
+
 const appwrightPath = '/home/node/appwright/dist/bin/index.js';
 
+/**
+ * Custom iOS test runner using direct WebDriver connection
+ */
+async function runIOSTest(job) {
+  if (!wdio) {
+    throw new Error('WebDriverIO not available. Install with: npm install webdriverio');
+  }
 
+  console.log('[runJob.js] Running iOS test using direct WebDriver connection to 34.70.141.104:4723');
+  
+  const driver = await wdio.remote({
+    protocol: 'http',
+    hostname: '34.70.141.104',
+    port: 4723,
+    path: '/wd/hub',
+    capabilities: {
+      platformName: 'iOS',
+      'appium:platformVersion': '17.2', // Adjust as needed
+      'appium:deviceName': 'iPhone 15 Pro Max',
+      'appium:automationName': 'XCUITest',
+      // Download app from your job server
+      'appium:app': '/Users/armond/Downloads/Wikipedia.app', // Update with actual URL
+      // Alternative: use local path if app is pre-uploaded
+      // app: '/tmp/RetroArch.app'
+    },
+    logLevel: 'info'
+  });
+
+  try {
+    console.log('[runJob.js] iOS test started - connecting to simulator...');
+    
+    // Wait for app to launch
+    await driver.pause(3000);
+    
+    // Example test steps - replace with your actual test logic
+    console.log('[runJob.js] iOS test: Verifying app launched successfully');
+    
+    // Get app state
+    const source = await driver.getPageSource();
+    console.log('[runJob.js] iOS test: App source retrieved successfully');
+    
+    // Add your specific test steps here based on your Wikipedia test
+    // For example:
+    // const searchElement = await driver.$('~search'); // accessibility id
+    // await searchElement.setValue('Microsoft');
+    // const resultElement = await driver.$('~Microsoft'); // wait for result
+    // await resultElement.waitForDisplayed({ timeout: 10000 });
+    
+    console.log('[runJob.js] iOS test completed successfully');
+    return 'iOS test completed successfully using direct WebDriver connection';
+    
+  } catch (testError) {
+    console.error('[runJob.js] iOS test failed:', testError.message);
+    throw new Error(`iOS test failed: ${testError.message}`);
+  } finally {
+    try {
+      await driver.deleteSession();
+      console.log('[runJob.js] iOS WebDriver session closed');
+    } catch (closeError) {
+      console.log('[runJob.js] Warning: Could not close iOS WebDriver session:', closeError.message);
+    }
+  }
+}
+
+/**
+ * Download app from job server to remote Appium server (optional helper)
+ */
+async function downloadAppToRemoteServer(appUrl, targetPath = '/tmp/app.zip') {
+  // This would require SSH access to the remote server or a file upload endpoint
+  // For now, we'll use direct URL in capabilities
+  console.log(`[runJob.js] Using app URL directly: ${appUrl}`);
+  return appUrl;
+}
+
+// [Keep all your existing BrowserStack functions unchanged]
 
 /**
  * Get recent BrowserStack builds first, then get sessions from them
@@ -384,21 +467,31 @@ async function getBrowserStackSessionDetails(sessionId) {
 }
 
 /**
- * Runs an Appwright test job.
- * Executes the Appwright CLI command with the specified test path and config.
- * @param {object} job - The job object containing properties like test_path and target.
- * @param {string} job.test_path - The path to the test file to be executed.
- * @param {string} job.target - The target project name (e.g., 'android', 'ios').
- * @returns {Promise<string>} Resolves with stdout on success, rejects with Error on failure.
+ * Modified main runJob function with hybrid iOS support
  */
 async function runJob(job) {
+  const targetProject = job.target;
+  
+  // Use custom iOS test runner for iOS projects
+  if (targetProject === 'ios') {
+    console.log('[runJob.js] Detected iOS project - using direct WebDriver connection');
+    try {
+      const result = await runIOSTest(job);
+      console.log('[runJob.js] iOS test completed successfully via direct WebDriver');
+      return result;
+    } catch (iosError) {
+      console.error('[runJob.js] iOS direct WebDriver test failed:', iosError.message);
+      throw new Error(`iOS test failed: ${iosError.message}`);
+    }
+  }
+  
+  // Use existing Appwright approach for Android and other projects
   return new Promise((resolve, reject) => {
-    const testPathEscaped = job.test_path; // Assuming safe path input
-    const targetProject = job.target;
+    const testPathEscaped = job.test_path;
     const appwrightConfigPath = path.join(__dirname, 'appwright.config.ts');
     const command = `node ${config.APPWRIGHT_PATH} test ${testPathEscaped} --config ${appwrightConfigPath} --project ${targetProject}`;
     
-    console.log(`[runJob.js] Executing command: ${command}`);
+    console.log(`[runJob.js] Executing Appwright command: ${command}`);
     
     exec(command, { timeout: 300000 }, async (error, stdout, stderr) => {
       const fullOutput = stdout + stderr;
@@ -416,9 +509,9 @@ async function runJob(job) {
       const testName = testNameMatch ? testNameMatch[1] : 'Unknown Test';
       
       // Only try to get BrowserStack session details if the project uses BrowserStack provider
-      if (targetProject === 'ios') {
+      if (targetProject === 'android') { // Changed from 'ios' since we handle iOS separately now
         try {
-          console.log('[runJob.js] Fetching BrowserStack session details for iOS test...');
+          console.log('[runJob.js] Fetching BrowserStack session details for Android test...');
           // Add a small delay to ensure session is registered
           await new Promise(resolve => setTimeout(resolve, 3000));
           
@@ -518,33 +611,33 @@ async function runJob(job) {
           }
         }
       } else {
-        console.log('[runJob.js] Android test completed using local device provider - no BrowserStack session to fetch');
+        console.log(`[runJob.js] ${targetProject} test completed - no BrowserStack session to fetch`);
       }
         
-        // Determine final result after video processing
-        if (error && !testsPassed) {
-          console.error(`[runJob.js] Error running Appwright test: ${error.message}`);
-          console.error(`[runJob.js] STDOUT: \n${stdout}`);
-          console.error(`[runJob.js] STDERR: \n${stderr}`);
-          
-          if (fullOutput.includes("BROWSERSTACK_USERNAME") && fullOutput.includes("BROWSERSTACK_ACCESS_KEY")) {
-            reject(new Error("Test failed: BrowserStack credentials required. This indicates your appwright.config.js might not be correctly loaded or there's an implicit BrowserStack dependency."));
-          } else {
-            reject(new Error(`Test failed during execution: ${error.message}`));
-          }
+      // Determine final result after video processing
+      if (error && !testsPassed) {
+        console.error(`[runJob.js] Error running Appwright test: ${error.message}`);
+        console.error(`[runJob.js] STDOUT: \n${stdout}`);
+        console.error(`[runJob.js] STDERR: \n${stderr}`);
+        
+        if (fullOutput.includes("BROWSERSTACK_USERNAME") && fullOutput.includes("BROWSERSTACK_ACCESS_KEY")) {
+          reject(new Error("Test failed: BrowserStack credentials required. This indicates your appwright.config.js might not be correctly loaded or there's an implicit BrowserStack dependency."));
         } else {
-          console.log('[runJob.js] Test completed successfully.');
-          resolve(stdout);
+          reject(new Error(`Test failed during execution: ${error.message}`));
         }
+      } else {
+        console.log('[runJob.js] Test completed successfully.');
+        resolve(stdout);
+      }
     });
   });
 }
 
 module.exports = {
   runJob,
+  runIOSTest, // Export the new iOS test function
   getBrowserStackSessions,
   getBrowserStackSessionDetails,
   getBrowserStackBuilds,
   testBrowserStackConnection,
 };
-

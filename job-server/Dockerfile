@@ -57,6 +57,9 @@ ENV ANDROID_HOME=/opt/android-sdk \
 COPY --from=builder /usr/src/app/package*.json ./
 RUN npm install --omit=dev
 
+# Install WebDriverIO for iOS testing
+RUN npm install webdriverio
+
 # Patch appwright to fix the pkill -f appium error that causes second test runs to fail
 RUN sed -i 's/reject(error);/resolve(stdout); \/\/ Fixed: treat pkill error as successful cleanup/' /usr/src/app/node_modules/appwright/dist/providers/appium.js
 
@@ -67,8 +70,10 @@ RUN sed -i '/async function installDriver(driverName) {/a\    return; \/\/ Skip 
 COPY QualGent_Backend/job-server/*.js ./
 COPY QualGent_Backend/job-server/tests ./tests
 COPY QualGent_Backend/job-server/appwright.config.ts ./
+
 # Copy the TypeScript config since we're using the .ts file directly
 COPY QualGent_Backend/job-server/tsconfig.json ./
+
 RUN echo '#!/bin/bash\n\
 echo "=== Starting application - drivers will be loaded from package.json ==="\n\
 exec "$@"' > /entrypoint.sh && chmod +x /entrypoint.sh \

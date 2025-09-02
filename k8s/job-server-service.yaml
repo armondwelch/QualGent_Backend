@@ -21,3 +21,7 @@ spec:
       protocol: TCP
       port: 8000        # Direct ws-scrcpy access
       targetPort: 8000
+    - name: vnc-server
+      protocol: TCP
+      port: 5900        # VNC server for iOS simulator
+      targetPort: 5900

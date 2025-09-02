@@ -12,10 +12,10 @@ export default defineConfig({
       use: {
         platform: Platform.ANDROID,
         device: {
-          provider: "local-device",  // Changed from "emulator"
+          provider: "local-device",
           name: process.env.ANDROID_EMULATOR_HOST || "34.56.143.27:5555",
         },
-	appBundleId: "org.wikipedia",
+        appBundleId: "org.wikipedia",
         buildPath: path.join("/mnt/data/apk-storage", "wikipedia.apk"),
         video: "off",
       },
@@ -25,11 +25,33 @@ export default defineConfig({
       use: {
         platform: Platform.IOS,
         device: {
-          provider: "browserstack",
-          name: "iPhone 14",
-          osVersion: "16.0",
+          provider: "local-device",
+          name: process.env.IOS_SIMULATOR_HOST || "34.70.141.104:4723",
         },
         buildPath: path.join("/mnt/data/apk-storage", "RetroArch.ipa"),
+        video: "off",
+        
+        // Try these possible WebDriver URL configurations:
+        
+        // Option A: Direct webDriverUrl
+        webDriverUrl: "http://34.70.141.104:4723/wd/hub",
+        
+        // Option B: Server configuration
+        // server: {
+        //   host: "34.70.141.104",
+        //   port: 4723,
+        //   path: "/wd/hub"
+        // },
+        
+        // Option C: Remote configuration
+        // remote: {
+        //   hostname: "34.70.141.104",
+        //   port: 4723,
+        //   path: "/wd/hub"
+        // },
+        
+        // Option D: Appium server config
+        // appiumServer: "http://34.70.141.104:4723/wd/hub",
       },
     },
   ],
