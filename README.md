@@ -1,6 +1,6 @@
 <h1>QueueForge - Job Scheduling System</h1> 
 
- QueueForge is a tool for managing end-2-end testing across multiple devices and app versions, prioritizing job execution and reducing redundancy. The tool receives and queues test jobs., groups them by app_version_id, assigns jobs to available agents based on device availability and target, and tracks job and run statuses with retries for failed jobs.
+QueueForge is a tool for managing end-2-end testing across multiple devices and app versions, prioritizing job execution and reducing redundancy. The tool receives and queues test jobs, groups them by app_version_id, assigns jobs to available agents based on device availability and target, and tracks job and run statuses with retries for failed jobs. Integrations with browserstack, docker android, and ios simulators.
 
 <h1>Features:</h1>
 
@@ -8,9 +8,13 @@ Job Server: Handles job scheduling, execution, and integration with external ser
 
 PostgreSQL Database: Stores metadata for test videos, job statuses, and other related information.
 
-Kubernetes: Manages the deployment and scaling of services like job server, database, and other components.
+Kubernetes (in GCP): Manages the deployment and scaling of services like job server, database, and emulators/simulators.
+
+KVM: Hardware-assisted virtualization for emulators
 
 BrowserStack: Used for cross-browser and mobile device testing with retrieval of test results and metadata.
+
+Ws-scrpy, VNC: Live video streaming for real-time test observation
 
 CLI Tool (qgjob-cli): Command-line tool for managing job execution and interactions with the backend services.
 
@@ -26,12 +30,22 @@ Job Retry: Failed jobs are retried up to a configured maximum number of attempts
 
 Job Status Tracking: You can track job status via the API and inspect the current state of queued jobs. The status can be "queued", "running", "complete", or "failed".
 
-<img width="738" height="588" alt="image" src="https://github.com/user-attachments/assets/0a1464f9-d2dc-40d2-9c83-0eb230daa9c5" />
+<img width="1108" height="712" alt="image" src="https://github.com/user-attachments/assets/633db7a3-6298-48da-97fb-5de129b906f4" />
+
+
+<h1>Emulator Services</h1>
+
+<h2>Android</h2>
+<img width="954" height="186" alt="image" src="https://github.com/user-attachments/assets/dc272f4b-b80f-4cf0-b62f-037fd5991a92" />
+
+<h2>iOS</h2>
+<img width="983" height="144" alt="image" src="https://github.com/user-attachments/assets/31a516b9-d735-4872-a983-4ce0c5618ef3" />
+
 
 <h1>Infrastructure Requirements</h1>
 <h3>Container Platform</h3>
 
-Docker - For containerized deployment
+Docker - For containerized deployment of job-server and emulators
 
 Kubernetes - For orchestration and scaling (optional but recommended for production)
 
@@ -39,7 +53,7 @@ Kubernetes - For orchestration and scaling (optional but recommended for product
 
 PostgreSQL - Database for storing test results and video data
 
-File Storage - Persistent volume for app builds storage (/mnt/data/apk-storage/)
+File Storage - Persistent volume for app builds storage (/mnt/data/apk-storage/) and for emulators
 
 <h3>External Services</h3>
 BrowserStack App Automate account
@@ -127,6 +141,8 @@ jobserver/appwright.config.ts can be edited to testing implementation
 Default Ports
 - Job Server: `3000`
 - PostgreSQL: `5432`
+- MacOS appium: 4723
+- MacOS VNC: 5999
   
 <h1>Submit Tests</h1>
 
