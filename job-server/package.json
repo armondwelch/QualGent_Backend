@@ -1,0 +1,30 @@
+{
+  "name": "job-server",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "build-config": "tsc",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "Job server with mobile testing support",
+  "dependencies": {
+    "appium": "^2.11.4",
+    "appium-uiautomator2-driver": "^3.7.11",
+    "appium-xcuitest-driver": "^7.25.0",
+    "appwright": "^0.1.45",
+    "dotenv": "^17.2.0",
+    "express": "^5.1.0",
+    "pg": "^8.16.3",
+    "uuid": "^11.1.0",
+    "ws": "^8.16.0",
+    "socket.io": "^4.7.2",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.15",
+    "typescript": "^5.8.3"
+  }
+}

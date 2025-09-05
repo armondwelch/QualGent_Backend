@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: job-server-service
+spec:
+  selector:
+    app: job-server
+  type: NodePort   # Change here for external access in minikube
+  ports:
+    - name: job-server
+      protocol: TCP
+      port: 3000        # The port your service listens on
+      targetPort: 3000  # The port your pod/container listens on
+      # Optional: specify nodePort if you want a fixed port outside the cluster
+      # nodePort: 30000
+    - name: streaming-interface
+      protocol: TCP
+      port: 8886        # ws-scrcpy web interface
+      targetPort: 8886
+    - name: ws-scrcpy
+      protocol: TCP
+      port: 8000        # Direct ws-scrcpy access
+      targetPort: 8000
+    - name: vnc-server
+      protocol: TCP
+      port: 5900        # VNC server for iOS simulator
+      targetPort: 5900

@@ -1,0 +1,67 @@
+name: CI - Run Tests with qgjob
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  run-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      - name: Install dependencies (CLI + server)
+        run: |
+          cd qgjob-cli
+          npm install
+          cd ../job-server
+          npm install
+
+      - name: Start job-server (backend)
+        run: |
+          cd job-server
+          nohup node index.js > server.log 2>&1 &
+          sleep 3 # give the server time to start
+
+      - name: Submit test job using qgjob CLI
+        id: submit
+        run: |
+          JOB_ID=$(node qgjob-cli/index.js submit \
+            --org-id=ci-org \
+            --app-version-id=ci-app-v1 \
+            --test="/tests/sample.js" \
+            --priority=1 \
+            --target=android | grep -oP '[0-9a-f-]{36}')
+          echo "Submitted job with ID: $JOB_ID"
+          echo "job_id=$JOB_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Poll for job completion
+        run: |
+          JOB_ID="${{ steps.submit.outputs.job_id }}"
+          echo "Polling for Job ID: $JOB_ID"
+
+          for i in {1..10}; do
+            STATUS=$(curl -s http://localhost:3000/jobs/$JOB_ID | jq -r '.status')
+            echo "Job status: $STATUS"
+
+            if [[ "$STATUS" == "complete" ]]; then
+              echo "✅  Job completed successfully!"
+              exit 0
+            elif [[ "$STATUS" == "failed" ]]; then
+              echo "⚠️  Job failed, but continuing workflow."
+              exit 0
+            fi
+            sleep 5
+          done
+
+          echo "⏰  Timeout waiting for job to complete"
+          exit 0

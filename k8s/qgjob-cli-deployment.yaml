@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qgjob-cli
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: qgjob-cli
+  template:
+    metadata:
+      labels:
+        app: qgjob-cli
+    spec:
+      containers:
+      - name: qgjob-cli
+        image: armondwelch/qgjob-cli:latest
+        command: ["sleep"]
+        args: ["infinity"]
+        env:
+        - name: JOB_SERVER_URL
+          value: "http://192.168.49.2:31741"  # Use service name inside cluster, not minikube IP
