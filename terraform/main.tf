@@ -37,6 +37,16 @@ resource "google_container_cluster" "emulator_cluster" {
   # Enable cluster autoscaler
   cluster_autoscaling {
     enabled = true
+    resource_limits {
+      resource_type   = "cpu"
+      minimum         = 1
+      maximum         = 100
+    }
+    resource_limits {
+      resource_type   = "memory"
+      minimum         = 1
+      maximum         = 1000
+    }
   }
 }
 
@@ -53,7 +63,7 @@ resource "google_container_node_pool" "default_pool" {
   
   node_config {
     preemptible  = true
-    machine_type = var.default_machine_type
+    machine_type = "e2-standard-4"
     
     metadata = {
       disable-legacy-endpoints = "true"
@@ -69,7 +79,7 @@ resource "google_container_node_pool" "default_pool" {
 
 # Android emulator node pool
 resource "google_container_node_pool" "android_emulator_pool" {
-  name       = "android-emulator"
+  name       = "android-emulator-pool"
   cluster    = google_container_cluster.emulator_cluster.name
   location   = var.zone
   
@@ -79,11 +89,11 @@ resource "google_container_node_pool" "android_emulator_pool" {
   }
   
   node_config {
-    preemptible  = true
-    machine_type = var.android_machine_type
+    preemptible  = false
+    machine_type = "n1-standard-4"
     
     labels = {
-      workload = "android"
+      kvm = "enabled"
     }
     
     metadata = {
@@ -93,8 +103,16 @@ resource "google_container_node_pool" "android_emulator_pool" {
     oauth_scopes = [
       "https://www.googleapis.com/auth/logging.write",
       "https://www.googleapis.com/auth/monitoring",
-      "https://www.googleapis.com/auth/devstorage.read_only"
+      "https://www.googleapis.com/auth/devstorage.read_only",
+      "https://www.googleapis.com/auth/service.management.readonly",
+      "https://www.googleapis.com/auth/servicecontrol",
+      "https://www.googleapis.com/auth/trace.append"
     ]
+    
+    advanced_machine_features {
+      enable_nested_virtualization = true
+      threads_per_core             = 0
+    }
   }
 }
 
@@ -104,7 +122,6 @@ resource "google_container_node_pool" "macos_kvm_pool" {
   cluster    = google_container_cluster.emulator_cluster.name
   location   = var.zone
   
-  # Scale to zero when not needed!
   autoscaling {
     min_node_count = 0    
     max_node_count = var.macos_pool_max_nodes
@@ -112,20 +129,9 @@ resource "google_container_node_pool" "macos_kvm_pool" {
   
   node_config {
     preemptible  = true
-    machine_type = var.macos_machine_type
-    
-    # Enable nested virtualization for KVM
-    advanced_machine_features {
-      threads_per_core                 = 2
-      enable_nested_virtualization    = true
-    }
-    
-    # Taint so only macOS workloads schedule here
-    taint {
-      key    = "workload" 
-      value  = "macos"
-      effect = "NO_SCHEDULE"
-    }
+    machine_type = "n1-standard-8"
+    disk_size_gb = 150
+    disk_type    = "pd-standard"
     
     labels = {
       workload = "macos"
@@ -138,8 +144,16 @@ resource "google_container_node_pool" "macos_kvm_pool" {
     oauth_scopes = [
       "https://www.googleapis.com/auth/logging.write",
       "https://www.googleapis.com/auth/monitoring",
-      "https://www.googleapis.com/auth/devstorage.read_only"
+      "https://www.googleapis.com/auth/devstorage.read_only",
+      "https://www.googleapis.com/auth/service.management.readonly",
+      "https://www.googleapis.com/auth/servicecontrol",
+      "https://www.googleapis.com/auth/trace.append"
     ]
+    
+    advanced_machine_features {
+      threads_per_core             = 0
+      enable_nested_virtualization = true
+    }
   }
 }
 
@@ -150,4 +164,7 @@ resource "google_compute_disk" "macos_restored" {
   zone  = var.zone
   image = "macos-backup-image"
   type  = "pd-standard"
+  labels = {
+    "storage-class" = "standard-rwo"
+  }
 }
