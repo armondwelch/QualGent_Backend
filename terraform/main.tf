@@ -142,3 +142,12 @@ resource "google_container_node_pool" "macos_kvm_pool" {
     ]
   }
 }
+
+# Restore macOS disk from backup image
+resource "google_compute_disk" "macos_restored" {
+  name  = "macos-system-restored"
+  size  = 200
+  zone  = var.zone
+  image = "macos-backup-image"
+  type  = "pd-standard"
+}

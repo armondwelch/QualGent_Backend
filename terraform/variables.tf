@@ -45,7 +45,7 @@ variable "macos_pool_max_nodes" {
 variable "default_machine_type" {
   description = "Machine type for default nodes"
   type        = string
-  default     = "n1-standard-4"
+  default     = "e2-standard-4"
 }
 
 variable "android_machine_type" {
@@ -57,5 +57,5 @@ variable "android_machine_type" {
 variable "macos_machine_type" {
   description = "Machine type for macOS nodes"
   type        = string
-  default     = "n1-standard-4"
+  default     = "e2-standard-4"
 }
