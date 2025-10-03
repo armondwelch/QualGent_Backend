@@ -13,7 +13,7 @@ export default defineConfig({
         platform: Platform.ANDROID,
         device: {
           provider: "local-device",
-          name: process.env.ANDROID_EMULATOR_HOST || "34.56.143.27:5555",
+          name: process.env.ANDROID_EMULATOR_HOST || "34.46.226.111:5555",
         },
         appBundleId: "org.wikipedia",
         buildPath: path.join("/mnt/data/apk-storage", "wikipedia.apk"),

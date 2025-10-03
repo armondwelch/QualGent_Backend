@@ -40,11 +40,11 @@ async function runIOSTest(job) {
     throw new Error('WebDriverIO not available. Install with: npm install webdriverio');
   }
 
-  console.log('[runJob.js] Running iOS test using direct WebDriver connection to 34.70.141.104:4723');
+  console.log('[runJob.js] Running iOS test using direct WebDriver connection to 34.68.146.226');
   
   const driver = await wdio.remote({
     protocol: 'http',
-    hostname: '34.70.141.104',
+    hostname: '34.68.146.226',
     port: 4723,
     path: '/wd/hub',
     capabilities: {
